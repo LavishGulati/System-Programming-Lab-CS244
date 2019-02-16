@@ -5,16 +5,13 @@
 #include <ctype.h>
 #include <math.h>
 
-// Number of commands
 #define numInstr 12
 
-// Instruction struct which stores an intruction and its opcode
 struct instruction{
     char instr[5];
     char opcode[5];
 };
 
-// Decimal to hexadecimal converter (for registers)
 char *decToHex(int n){
     char *output = (char *)(malloc(5*sizeof(char)));
     for(int i = 0; i < 4; i++){
@@ -41,7 +38,6 @@ char *decToHex(int n){
     return output;
 }
 
-// Hexadecimal to binary converter
 char *hexToBin(char *s){
     char *output = (char *)(malloc(17*sizeof(char)));
     int i;
@@ -103,7 +99,6 @@ char *hexToBin(char *s){
     return output;
 }
 
-// Decimal to binary converter (for registers)
 char *decToBin(int n){
     char *output = (char *)(malloc(6*sizeof(char)));
     for(int i = 0; i < 6; i++){
@@ -124,28 +119,6 @@ char *decToBin(int n){
     return output;
 }
 
-// Decimal to binary converter (for decimal immediate values)
-char *decToBin2(int n){
-    char *output = (char *)(malloc(17*sizeof(char)));
-    for(int i = 0; i < 17; i++){
-        output[i] = '0';
-    }
-
-    int i = 15;
-    while(n != 0){
-        int temp = 0;
-        temp = n%2;
-        output[i] = temp+48;
-        i--;
-
-        n /= 2;
-    }
-
-    output[16] = '\0';
-    return output;
-}
-
-// Return substring of a string with given start index and length of substring
 char *substr(char *input, int si, int length, int n){
     char *output = (char *)(malloc(n*sizeof(char)));
     for(int i = 0; i < length; i++){
@@ -155,13 +128,10 @@ char *substr(char *input, int si, int length, int n){
     return output;
 }
 
-// Build opcode array which stores commands and their opcodes
 struct instruction *getOpcodeArray(FILE *inputOpcodeFile){
     struct instruction *opcodeArray = (struct instruction *)malloc(numInstr*sizeof(struct instruction));
     char s[15];     // Each line in inputOpcode.txt
     int n = 15;     // Size of each line in inputOpcode.txt
-
-    // Read each line in input opcode file and store it in array
     for(int i = 0; i < numInstr; i++){
         fgets(s, n, inputOpcodeFile);
 
@@ -182,15 +152,12 @@ struct instruction *getOpcodeArray(FILE *inputOpcodeFile){
         strcpy(opcodeArray[i].opcode, substr(s, 8, 4, n));
     }
 
-    // Return the array
     return opcodeArray;
 }
 
-// Writes command and its opcode to output opcode table file
 void printOpcode(struct instruction *opcodeArray, bool isPrinted[numInstr], FILE *opcodeOutputFile, char *command){
     for(int i = 0; i < numInstr; i++){
         if(!strcmp(opcodeArray[i].instr, command)){
-            // If not written already, write the opcode
             if(!isPrinted[i]){
                 isPrinted[i] = true;
                 fprintf(opcodeOutputFile, "%-5s%10s\n", command, opcodeArray[i].opcode);
@@ -200,7 +167,6 @@ void printOpcode(struct instruction *opcodeArray, bool isPrinted[numInstr], FILE
     }
 }
 
-// Checks if a read line is blank (means it doesn't contain any intruction) or not
 bool checkIfBlank(char *s, int n){
     for(int i = 0; s[i] != '\0'; i++){
         if(s[i] == ';') return true;
@@ -212,7 +178,6 @@ bool checkIfBlank(char *s, int n){
     return true;
 }
 
-// Reads label address during pass 2 from symTable.txt
 char *readLabelAddress(char *label){
     char output[10] = "";
     FILE *symTableFile = fopen("symTable.txt", "r");
@@ -237,37 +202,30 @@ char *readLabelAddress(char *label){
     return address;
 }
 
-// Pass 1
 void pass1(struct instruction *opcodeArray, FILE *inputFile){
     char s[1000] = "";   // Each line in input.asm
-    char upper_s[1000] = "";    // Each line converted to uppercase
+    char upper_s[1000] = "";
     int n = 1000;   // Size of each line in input.asm
-    bool start = false; // Whether the program has started or not
+    bool start = false;
 
-    bool isPrinted[numInstr];   // Array to store which commands are already printed in the opcode table
+    bool isPrinted[numInstr];
     for(int i = 0; i < numInstr; i++) isPrinted[i] = false;
 
-    int offset = 0;     // Used in address calculation
-
-    // Opening output files for writing
+    int offset = 0;
     FILE *opcodeOutputFile = fopen("opTable.txt", "w");
     FILE *symTableFile = fopen("symTable.txt", "w");
 
     while(1){
-        // Read each line
         fgets(s, n, inputFile);
 
-        // If no intruction in the line, then skip it
         if(checkIfBlank(s, n)){
             continue;
         }
 
-        // Convert the line to uppercase and store in upper_s
         for(int i = 0; i < strlen(s); i++){
             upper_s[i] = toupper(s[i]);
         }
 
-        // If not started, check for "START" command
         if(!start){
             if(strstr(upper_s, "START") != NULL){
                 start = true;
@@ -275,40 +233,32 @@ void pass1(struct instruction *opcodeArray, FILE *inputFile){
             continue;
         }
 
-        // If "END" command discovered, stop the program
         if(strstr(upper_s, "END") != NULL){
             break;
         }
 
-        // Data cleaning: Removing ';' (comments)
         for(int i = 0; s[i] != '\0'; i++){
             if(s[i] == ';') s[i] = '\0';
         }
 
         char label[100] = "";    // 100 is the max. label size
-        char command[100] = "";
-        char val1[100] = "";
-        char val2[100] = "";
+        char command[5] = "";
+        char val1[10] = "";
+        char val2[10] = "";
 
-        // If label statement
         if(strstr(s, ":") != NULL){
-
-            // Data cleaning: Removing ',' and ':'
             for(int i = 0; i < strlen(s); i++){
                 if(s[i] == ',' || s[i] == ':') s[i] = ' ';
             }
 
             sscanf(s, " %s %s %s %s", label, command, val1, val2);
             char *address = decToHex(offset);
-            // Printing label to symTable.txt
             fprintf(symTableFile, "%s:%10sH\n", label, address);
 
-            // If further command not present, skip the line
             if(!strcmp(command, "")) continue;
 
         }
         else{
-            // Data cleaning: Remove ','
             for(int i = 0; i < strlen(s); i++){
                 if(s[i] == ',') s[i] = ' ';
             }
@@ -316,7 +266,6 @@ void pass1(struct instruction *opcodeArray, FILE *inputFile){
             sscanf(s, " %s %s %s", command, val1, val2);
         }
 
-        // Convert command and values to uppercase
         for(int i = 0; i < strlen(command); i++){
             command[i] = toupper(command[i]);
         }
@@ -329,10 +278,7 @@ void pass1(struct instruction *opcodeArray, FILE *inputFile){
             val2[i] = toupper(val2[i]);
         }
 
-        // Calculate bits used for instructions
         int bits = 4;
-
-        // Print opcode in output file
         if(!strcmp(command, "LOOP")){
             printOpcode(opcodeArray, isPrinted, opcodeOutputFile,"LOOP");
             printOpcode(opcodeArray, isPrinted, opcodeOutputFile, "SUB");
@@ -340,7 +286,6 @@ void pass1(struct instruction *opcodeArray, FILE *inputFile){
         }
         else printOpcode(opcodeArray, isPrinted, opcodeOutputFile, command);
 
-        // Address calculation for various instructions
         if(!strcmp(command, "MUL")){
             bits += 5;
 
@@ -355,9 +300,9 @@ void pass1(struct instruction *opcodeArray, FILE *inputFile){
             bits += 16;
         }
         else if(!strcmp(command, "LOOP")){
-            bits += 21;
+            bits += 21;     // SUB R31 0001H
             offset += ceil(bits/8.00);
-            bits = 20;
+            bits = 20;      // JMP Label
         }
         else{
             if(strstr(val1, "R") == NULL && strstr(val2, "R") == NULL){
@@ -374,11 +319,9 @@ void pass1(struct instruction *opcodeArray, FILE *inputFile){
             }
         }
 
-        // Increase byte offset by required amount
         offset += ceil(bits/8.00);
     }
 
-    // Close the files
     fclose(opcodeOutputFile);
     fclose(symTableFile);
 }
@@ -419,10 +362,10 @@ void pass2(struct instruction *opcodeArray, FILE *inputFile){
             if(s[i] == ';') s[i] = '\0';
         }
 
-        char label[100] = "";    // 10 is the max. label size
-        char command[100] = "";
-        char val1[100] = "";
-        char val2[100] = "";
+        char label[10] = "";    // 10 is the max. label size
+        char command[5] = "";
+        char val1[10] = "";
+        char val2[10] = "";
 
         if(strstr(s, ":") != NULL){
             for(int i = 0; i < strlen(s); i++){
@@ -470,31 +413,6 @@ void pass2(struct instruction *opcodeArray, FILE *inputFile){
 
                 fprintf(outputFile, "%4s 00001 %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17));
             }
-            else if(strstr(val1, "D") != NULL){
-                int val1Dec = 0;
-                int helper = 1;
-                for(int i = strlen(val1)-2; i >= 0; i--){
-                    val1Dec += (val1[i]-'0')*helper;
-                    helper *= 10;
-                }
-                char *address = decToBin2(val1Dec);
-                fprintf(outputFile, "%4s %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17));
-            }
-            else if(strstr(val1, "B") != NULL){
-                char address[17];
-                for(int i = 0; i < 17; i++) address[i] = '0';
-                address[16] = '\0';
-
-                int j = 15;
-                for(int i = strlen(val1)-2; i >= 0; i--){
-                    address[j] = val1[i];
-                    j--;
-                }
-                fprintf(outputFile, "%4s %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17));
-            }
-            else if(strstr(val1, "O") != NULL){
-
-            }
             else if(strstr(val1, "R") != NULL){
                 int val1Dec;
                 if(strlen(val1) == 2) val1Dec = val1[1]-'0';
@@ -508,31 +426,6 @@ void pass2(struct instruction *opcodeArray, FILE *inputFile){
             if(strstr(val1, "H") != NULL){
                 char *address = hexToBin(val1);
                 fprintf(outputFile, "%4s %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17));
-            }
-            else if(strstr(val1, "D") != NULL){
-                int val1Dec = 0;
-                int helper = 1;
-                for(int i = strlen(val1)-2; i >= 0; i--){
-                    val1Dec += (val1[i]-'0')*helper;
-                    helper *= 10;
-                }
-                char *address = decToBin2(val1Dec);
-                fprintf(outputFile, "%4s %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17));
-            }
-            else if(strstr(val1, "B") != NULL){
-                char address[17];
-                for(int i = 0; i < 17; i++) address[i] = '0';
-                address[16] = '\0';
-
-                int j = 15;
-                for(int i = strlen(val1)-2; i >= 0; i--){
-                    address[j] = val1[i];
-                    j--;
-                }
-                fprintf(outputFile, "%4s %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17));
-            }
-            else if(strstr(val1, "O") != NULL){
-
             }
             else if(strstr(val1, "R") != NULL){
                 int val1Dec;
@@ -562,100 +455,19 @@ void pass2(struct instruction *opcodeArray, FILE *inputFile){
             fprintf(outputFile, "%4s\n", opcode);
         }
         else{
-            if(strstr(val1, "R") == NULL && strstr(val2, "R") == NULL){
-                char *address;
-                char *address2;
-                if(strstr(val1, "H") != NULL){
-                    address = hexToBin(val1);
-                }
-                else if(strstr(val1, "D") != NULL){
-                    int val1Dec = 0;
-                    int helper = 1;
-                    for(int i = strlen(val1)-2; i >= 0; i--){
-                        val1Dec += (val1[i]-'0')*helper;
-                        helper *= 10;
-                    }
-                    address = decToBin2(val1Dec);
-                }
-                else if(strstr(val1, "B") != NULL){
-                    address = (char *)(malloc(17*sizeof(char)));
-                    for(int i = 0; i < 17; i++) address[i] = '0';
-                    address[16] = '\0';
-
-                    int j = 15;
-                    for(int i = strlen(val1)-2; i >= 0; i--){
-                        address[j] = val1[i];
-                        j--;
-                    }
-                }
-                else if(strstr(val1, "O") != NULL){
-
-                }
-
-                if(strstr(val2, "H") != NULL){
-                    address2 = hexToBin(val2);
-                }
-                else if(strstr(val2, "D") != NULL){
-                    int val2Dec = 0;
-                    int helper = 1;
-                    for(int i = strlen(val2)-2; i >= 0; i--){
-                        val2Dec += (val2[i]-'0')*helper;
-                        helper *= 10;
-                    }
-                    address2 = decToBin2(val2Dec);
-                }
-                else if(strstr(val2, "B") != NULL){
-                    address2 = (char *)(malloc(17*sizeof(char)));
-                    for(int i = 0; i < 17; i++) address2[i] = '0';
-                    address2[16] = '\0';
-
-                    int j = 15;
-                    for(int i = strlen(val2)-2; i >= 0; i--){
-                        address2[j] = val2[i];
-                        j--;
-                    }
-                }
-                else if(strstr(val2, "O") != NULL){
-
-                }
-
+            if(strstr(val1, "H") != NULL && strstr(val2, "H") != NULL){
+                char *address = hexToBin(val1);
+                char *address2 = hexToBin(val2);
                 fprintf(outputFile, "%4s %8s %8s %8s %8s\n", opcode, substr(address, 0, 8, 17), substr(address, 8, 8, 17), substr(address2, 0, 8, 17), substr(address2, 8, 8, 17));
             }
-            else if(strstr(val1, "R") != NULL && strstr(val2, "R") == NULL){
+            else if(strstr(val1, "R") != NULL && strstr(val2, "H") != NULL){
                 int val1Dec;
                 if(strlen(val1) == 2) val1Dec = val1[1]-'0';
                 else if(strlen(val1) == 3) val1Dec = (val1[1]-'0')*10 + (val1[2]-'0');
 
                 char *address = decToBin(val1Dec);
 
-                char *address2;
-                if(strstr(val2, "H") != NULL){
-                    address2 = hexToBin(val2);
-                }
-                else if(strstr(val2, "D") != NULL){
-                    int val2Dec = 0;
-                    int helper = 1;
-                    for(int i = strlen(val2)-2; i >= 0; i--){
-                        val2Dec += (val2[i]-'0')*helper;
-                        helper *= 10;
-                    }
-                    // printf("%d\n", val2Dec);
-                    address2 = decToBin2(val2Dec);
-                }
-                else if(strstr(val2, "B") != NULL){
-                    address2 = (char *)(malloc(17*sizeof(char)));
-                    for(int i = 0; i < 17; i++) address2[i] = '0';
-                    address2[16] = '\0';
-
-                    int j = 15;
-                    for(int i = strlen(val2)-2; i >= 0; i--){
-                        address2[j] = val2[i];
-                        j--;
-                    }
-                }
-                else if(strstr(val2, "O") != NULL){
-
-                }
+                char *address2 = hexToBin(val2);
                 fprintf(outputFile, "%4s %5s %8s %8s\n", opcode, address, substr(address2, 0, 8, 17), substr(address2, 8, 8, 17));
             }
             else if(strstr(val1, "R") != NULL && strstr(val2, "R") != NULL){
@@ -673,34 +485,8 @@ void pass2(struct instruction *opcodeArray, FILE *inputFile){
 
                 fprintf(outputFile, "%4s %5s %5s\n", opcode, address, address2);
             }
-            else if(strstr(val1, "R") == NULL && strstr(val2, "R") != NULL){
-                char *address;
-                if(strstr(val1, "H") != NULL){
-                    address = hexToBin(val1);
-                }
-                else if(strstr(val1, "D") != NULL){
-                    int val1Dec = 0;
-                    int helper = 1;
-                    for(int i = strlen(val1)-2; i >= 0; i--){
-                        val1Dec += (val1[i]-'0')*helper;
-                        helper *= 10;
-                    }
-                    address = decToBin2(val1Dec);
-                }
-                else if(strstr(val1, "B") != NULL){
-                    address = (char *)(malloc(17*sizeof(char)));
-                    for(int i = 0; i < 17; i++) address[i] = '0';
-                    address[16] = '\0';
-
-                    int j = 15;
-                    for(int i = strlen(val1)-2; i >= 0; i--){
-                        address[j] = val1[i];
-                        j--;
-                    }
-                }
-                else if(strstr(val1, "O") != NULL){
-
-                }
+            else if(strstr(val1, "H") != NULL && strstr(val2, "R") != NULL){
+                char *address = hexToBin(val1);
 
                 int val2Dec;
                 if(strlen(val2) == 2) val2Dec = val2[1]-'0';
@@ -754,20 +540,16 @@ void pass2(struct instruction *opcodeArray, FILE *inputFile){
 
 int main(){
 
-    // File pointers for input.asm and opcode table file
     FILE *inputFile, *inputOpcodeFile;
 
-    // Make an array to store all commands and their opcodes
     inputOpcodeFile = fopen("inputOpcode.txt", "r");
     struct instruction *opcodeArray = getOpcodeArray(inputOpcodeFile);
     fclose(inputOpcodeFile);
 
-    // Pass 1
     inputFile = fopen("input.asm", "r");
     pass1(opcodeArray, inputFile);
     fclose(inputFile);
 
-    // Pass 2
     inputFile = fopen("input.asm", "r");
     pass2(opcodeArray, inputFile);
     fclose(inputFile);

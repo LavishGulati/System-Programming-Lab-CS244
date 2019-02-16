@@ -1,0 +1,10 @@
+MOV        0000
+ADD        0001
+LOOP       1001
+SUB        0010
+JNZ        1011
+MUL        0011
+AND        0101
+JMP        1000
+OR         0110
+HLT        1010
